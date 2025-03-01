@@ -1,9 +1,26 @@
+package Client;
 
-import java.io.*;
-import java.net.*;
-import java.nio.file.*;
-import java.security.*;
-import java.util.*;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.Socket;
+import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+
 
 class Config {
     static final String CLIENT_DIR = "client";
@@ -114,36 +131,5 @@ class Client {
         FileTransferHandler handler = new FileTransferHandler("localhost");
         FileWatcher watcher = new FileWatcher(Config.CLIENT_DIR, handler);
         watcher.watch();
-    }
-}
-
-class Server {
-    public static void main(String[] args) {
-        try (ServerSocket serverSocket = new ServerSocket(Config.SERVER_PORT)) {
-            System.out.println("Server started...");
-            while (true) {
-                try (Socket clientSocket = serverSocket.accept();
-                     DataInputStream dis = new DataInputStream(clientSocket.getInputStream())) {
-                    
-                    String fileName = dis.readUTF();
-                    long fileSize = dis.readLong();
-                    File file = new File(Config.SERVER_DIR, fileName);
-                    
-                    try (FileOutputStream fos = new FileOutputStream(file)) {
-                        byte[] buffer = new byte[4096];
-                        int bytesRead;
-                        while (fileSize > 0 && (bytesRead = dis.read(buffer, 0, (int)Math.min(buffer.length, fileSize))) != -1) {
-                            fos.write(buffer, 0, bytesRead);
-                            fileSize -= bytesRead;
-                        }
-                    }
-                    System.out.println("Received: " + fileName);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 }
