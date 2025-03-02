@@ -112,7 +112,7 @@ public class Server {
 				String operation = dis.readUTF();
 				String key, value;
 				long TTL;
-				
+				System.out.println(operation);
 				if (operation.equals("PUT")) {
 					key = dis.readUTF();
 					value = dis.readUTF();
