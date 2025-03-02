@@ -5,14 +5,14 @@ import java.io.DataOutputStream;
 import java.net.Socket;
 
 public class Client {
+	private static final int serverPort = 8000;
 	private String serverAddr;
-	private final int serverPort = 8000;
 	
 	public Client(String serverAddr) {
 		this.serverAddr = serverAddr;
 	}
 	
-	public String put(String key, String value, long TTL) throws Exception {
+	public String put(String key, String value, Long TTL) throws Exception {
 		Socket socket = null;
 		
 		try {
@@ -76,7 +76,7 @@ public class Client {
 			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 			DataInputStream in = new DataInputStream(socket.getInputStream());
 						
-			out.writeUTF("GET");
+			out.writeUTF("REMOVE");
 			out.writeUTF(key);
 			
 			return in.readUTF();
