@@ -1,10 +1,8 @@
 package Client;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.Socket;
-import java.util.Scanner;
+import java.io.*;
+import java.net.*;
+import java.util.*;
 
 public class Client {
 	private static final int serverPort = 8000;
@@ -14,26 +12,29 @@ public class Client {
 		this.serverAddr = serverAddr;
 	}
 	
-	public String put(String key, String value, Long TTL) throws Exception {
+	public int put(String key, String value, Long TTL) throws Exception {
+		DataOutputStream dos = null;
+		DataInputStream dis = null;
 		Socket socket = null;
 		
 		try {
 			socket = new Socket(serverAddr, serverPort);
-			
-			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			DataInputStream in = new DataInputStream(socket.getInputStream());
+			dos = new DataOutputStream(socket.getOutputStream());
+			dis = new DataInputStream(socket.getInputStream());
 						
-			out.writeUTF("PUT");
-			out.writeUTF(key);
-			out.writeUTF(value);
-			out.writeLong(TTL);
-			
-			return in.readUTF();
+			dos.writeInt(1);
+			dos.writeUTF(key);
+			dos.writeUTF(value);
+			dos.writeLong(TTL);
+						
+			return dis.readInt();
 		} catch (Exception e) {
 			throw new Exception(e);
 		} finally {
 			try {
 				if (socket != null) socket.close();
+				if (dos != null) dos.close();
+				if (dis != null) dis.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -41,20 +42,21 @@ public class Client {
 	}
 	
 	public String get(String key) throws Exception {
+		DataOutputStream dos = null;
+		DataInputStream dis = null;
 		Socket socket = null;
 		
 		try {
-			socket = new Socket(serverAddr, serverPort);
-			
-			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			DataInputStream in = new DataInputStream(socket.getInputStream());
+			socket = new Socket(serverAddr, serverPort);			
+			dos = new DataOutputStream(socket.getOutputStream());
+			dis = new DataInputStream(socket.getInputStream());
 						
-			out.writeUTF("GET");
-			out.writeUTF(key);
+			dos.writeInt(2);
+			dos.writeUTF(key);
 			
-			String res = in.readUTF();
-			if (res.equals("SUCCESS")) {
-				return in.readUTF();
+			int res = dis.readInt();
+			if (res == 1) {
+				return dis.readUTF();
 			} else {
 				return null;
 			}			
@@ -63,78 +65,102 @@ public class Client {
 		} finally {
 			try {
 				if (socket != null) socket.close();
+				if (dos != null) dos.close();
+				if (dis != null) dis.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
 	}
 	
-	public String remove(String key) throws Exception {
+	public int remove(String key) throws Exception {
+		DataOutputStream dos = null;
+		DataInputStream dis = null;
 		Socket socket = null;
 		
 		try {
 			socket = new Socket(serverAddr, serverPort);
-			
-			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			DataInputStream in = new DataInputStream(socket.getInputStream());
+			dos = new DataOutputStream(socket.getOutputStream());
+			dis = new DataInputStream(socket.getInputStream());
 						
-			out.writeUTF("REMOVE");
-			out.writeUTF(key);
+			dos.writeInt(3);
+			dos.writeUTF(key);
 			
-			return in.readUTF();
+			return dis.readInt();
 		} catch (Exception e) {
 			throw new Exception(e);
 		} finally {
 			try {
 				if (socket != null) socket.close();
+				if (dos != null) dos.close();
+				if (dis != null) dis.close();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
 	}
-	
 	
 	public static void main(String[] args) {
 		Client client = new Client("localhost");
 		Scanner scanner = new Scanner(System.in);
 
         while (true) {
-            System.out.println("명령을 입력하세요: put / get / remove / exit");
+            System.out.println("Input (put / get / remove / exit)");
             String command = scanner.nextLine().trim();
 
             try {
                 if (command.equals("put")) {
                     System.out.print("Key: ");
                     String key = scanner.nextLine().trim();
+                    
                     System.out.print("Value: ");
                     String value = scanner.nextLine().trim();
+                    
                     System.out.print("TTL: ");
                     long ttl = Long.parseLong(scanner.nextLine().trim());
+                    
                     try {
-	                    System.out.println("Put Response: " + client.put(key, value, ttl));
+                    	int res = client.put(key, value, ttl);
+                    	if (res == 1) {
+                    		System.out.println("SUCCESS");
+                    	} else {
+                    		System.out.println("FAIL");
+                    	}
                     } catch (Exception e) {
                     	e.printStackTrace();
                     }
                 } else if (command.equals("get")) {
                     System.out.print("Key: ");
                     String key = scanner.nextLine().trim();
+                    
                     try {
-	                    System.out.println("Get Response: " + client.get(key));
+                    	String res = client.get(key);
+                    	if (res != null) {
+                    		System.out.println("Value: " + res);
+                    	} else {
+                    		System.out.println("Not found");
+                    	}
                     } catch (Exception e) {
                     	e.printStackTrace();
                     }
                 } else if (command.equals("remove")) {
                     System.out.print("Key: ");
                     String key = scanner.nextLine().trim();
+                    
                     try {
-                    	System.out.println("Remove Response: " + client.remove(key));
+                    	int res = client.remove(key);
+                    	if (res == 1) {
+                    		System.out.println("SUCCESS");
+                    	} else {
+                    		System.out.println("FAIL");
+                    	}
                     } catch (Exception e) {
                     	e.printStackTrace();
                     }                    
                 } else if (command.equals("exit")) {
                     break;
                 } else {
-                    System.out.println("잘못된 명령입니다. put / get / remove / exit 중 하나를 입력하세요.");
+                    System.out.println("Wrong command!");
                 }
             } catch (Exception e) {
             	e.printStackTrace();

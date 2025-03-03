@@ -1,19 +1,8 @@
 package Server;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.io.*;
+import java.net.*;
+import java.util.concurrent.*;
 
 public class Server {
 	private static final int serverPort = 8000;
@@ -79,7 +68,7 @@ public class Server {
 		}
 	}
 	
-	private static void TTLChecker() {	// TTL check
+	private static void TTLCheck() {	// TTL check
 		Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             long currentTime = System.currentTimeMillis();
             
@@ -109,11 +98,11 @@ public class Server {
 				dis = new DataInputStream(socket.getInputStream());
 				dos = new DataOutputStream(socket.getOutputStream());
 				
-				String operation = dis.readUTF();
+				int operation = dis.readInt();
 				String key, value;
 				long TTL;
-				System.out.println(operation);
-				if (operation.equals("PUT")) {
+
+				if (operation == 1) {	// put
 					key = dis.readUTF();
 					value = dis.readUTF();
 					TTL = dis.readLong();
@@ -122,29 +111,29 @@ public class Server {
 					TTLs.put(key, TTL);					
 					saveLogs();
 					
-					dos.writeUTF("SUCCESS");
-				} else if (operation.equals("GET")) {
+					dos.writeInt(1);
+				} else if (operation == 2) {	// get
 					key = dis.readUTF();
 					value = hashMap.get(key);
 					
 					if (value != null) {
-						dos.writeUTF("SUCCESS");
+						dos.writeInt(1);
 						dos.writeUTF(value);
 					} else {
-						dos.writeUTF("FAIL");
+						dos.writeInt(0);
 					}
-				} else if (operation.equals("REMOVE")) {
+				} else if (operation == 3) {	// remove
 					key = dis.readUTF();
 					
 					if (hashMap.remove(key) != null) {
 						TTLs.remove(key);
 						saveLogs();
-						dos.writeUTF("SUCCESS");
+						dos.writeInt(1);
 					} else {
-						dos.writeUTF("FAIL");
+						dos.writeInt(0);
 					}
 				} else {
-					dos.writeUTF("FAIL");
+					dos.writeInt(0);
 				}
 				
 			} catch (Exception e) {
@@ -162,7 +151,7 @@ public class Server {
 	
 	public static void main(String[] args) {
 		loadLogs();
-		TTLChecker();
+		TTLCheck();
 		
 		ServerSocket serverSocket = null;
 		
@@ -176,7 +165,7 @@ public class Server {
             	
             	try {
             		socket = serverSocket.accept();
-                    new Handler(socket).start();            		
+                    new Handler(socket).start();
             	} catch (Exception e) {
             		e.printStackTrace();
             	} finally {
