@@ -21,7 +21,7 @@ public class Client {
 			socket = new Socket(serverAddr, serverPort);
 			dos = new DataOutputStream(socket.getOutputStream());
 			dis = new DataInputStream(socket.getInputStream());
-						
+			
 			dos.writeInt(1);
 			dos.writeUTF(key);
 			dos.writeUTF(value);

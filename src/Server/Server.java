@@ -90,7 +90,7 @@ public class Server {
 		}
 		
 		@Override
-		public void run() {
+		public void run() {    		
 			DataInputStream dis = null;
 			DataOutputStream dos = null;
 			
