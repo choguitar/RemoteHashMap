@@ -5,8 +5,10 @@ import java.net.*;
 import java.util.concurrent.*;
 
 public class Server {
-    private static final int PORT = 8000;
-    private static final String DATA_FILE = "data.txt";
+	private final int REMOVE_INTERVAL = 1;
+	private final int SAVE_INTERVAL = 10;
+    private final int PORT = 8000;
+    private final String DATA_FILE = "data.txt";
 
     private final ConcurrentHashMap<String, VALUE> hashMap = new ConcurrentHashMap<String, VALUE>();
     private final ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(1);
@@ -19,8 +21,8 @@ public class Server {
     public void start() {
     	loadLogs();
         
-        cleaner.scheduleAtFixedRate(this::removeExpired, 1, 1, TimeUnit.SECONDS);
-        logger.scheduleAtFixedRate(this::saveLogs, 10, 10, TimeUnit.SECONDS);
+        cleaner.scheduleAtFixedRate(this::removeExpired, REMOVE_INTERVAL, REMOVE_INTERVAL, TimeUnit.SECONDS);
+        logger.scheduleAtFixedRate(this::saveLogs, SAVE_INTERVAL, SAVE_INTERVAL, TimeUnit.SECONDS);
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server started...");
