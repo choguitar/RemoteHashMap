@@ -2,7 +2,6 @@ package Server;
 
 import java.io.*;
 import java.net.*;
-import java.util.*;
 import java.util.concurrent.*;
 
 public class Server {
@@ -11,6 +10,7 @@ public class Server {
 
     private final ConcurrentHashMap<String, VALUE> hashMap = new ConcurrentHashMap<String, VALUE>();
     private final ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService logger = Executors.newScheduledThreadPool(1);
 
     public static void main(String[] args) {
         new Server().start();
@@ -19,7 +19,8 @@ public class Server {
     public void start() {
     	loadLogs();
         
-        cleaner.scheduleAtFixedRate(this::removeExpiredEntries, 1, 1, TimeUnit.SECONDS);
+        cleaner.scheduleAtFixedRate(this::removeExpired, 1, 1, TimeUnit.SECONDS);
+        logger.scheduleAtFixedRate(this::saveLogs, 10, 10, TimeUnit.SECONDS);
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server started...");
@@ -48,28 +49,48 @@ public class Server {
                  DataOutputStream dos = new DataOutputStream(socket.getOutputStream())) {
             	
                 String operation = dis.readUTF();
+                int keyLen, valueLen;
+                byte[] keyBytes, valueBytes;
                 String key, value;
                 int ttl;
                 
                 if (operation.equals("PUT")) {
-                	key = dis.readUTF();
-                    value = dis.readUTF();
-                    ttl = dis.readInt();
+                	keyLen = dis.readInt();
+                    keyBytes = new byte[keyLen];
+                    dis.readFully(keyBytes);
+                    key = new String(keyBytes);
+
+                    valueLen = dis.readInt();
+                    valueBytes = new byte[valueLen];
+                    dis.readFully(valueBytes);
+                    value = new String(valueBytes);
                     
+                    ttl = dis.readInt();
+
                     dos.writeInt(put(key, value, ttl) ? 0 : -1);
                 } else if (operation.equals("GET")) {
-                	key = dis.readUTF();
+                    keyLen = dis.readInt();
+                    keyBytes = new byte[keyLen];
+                    dis.readFully(keyBytes);
+                    key = new String(keyBytes);
+                    
                     value = get(key);
                     if (value != null) {
                     	dos.writeInt(0);
-                    	dos.writeUTF(value);
+                    	
+                        byte[] valueByte = value.getBytes();
+                        dos.writeInt(valueByte.length);
+                        dos.write(valueByte);
                     } else {
                     	dos.writeInt(1);
                     }
                 } else if (operation.equals("REMOVE")) {
-                    key = dis.readUTF();
-                    boolean removed = remove(key);
-                    dos.writeInt(removed ? 0 : 1);
+                	keyLen = dis.readInt();
+                    keyBytes = new byte[keyLen];
+                    dis.readFully(keyBytes);
+                    key = new String(keyBytes);
+                    
+                    dos.writeInt(remove(key) ? 0 : 1);
                 } else {
                 	dos.writeInt(-1);                	
                 }
@@ -79,8 +100,8 @@ public class Server {
         }
     }
 
-    private boolean put(String key, String value, int ttl) {
-    	if (hashMap.get(key) == null) return false;
+    private synchronized boolean put(String key, String value, int ttl) {
+    	if (hashMap.get(key) != null) return false;
     	if (ttl <= 0) return true;
     	
         long expire = System.currentTimeMillis() + (ttl * 1000);
@@ -90,27 +111,25 @@ public class Server {
         return true;
     }
 
-    private String get(String key) {
+    private synchronized String get(String key) {
     	VALUE entry = hashMap.get(key);
-    	
     	if (entry == null) return null;
     	
     	if (System.currentTimeMillis() > entry.ttl) {
         	hashMap.remove(key);
         	saveLogs();
             return null;
-        }
-        
+        }        
         return entry.value;
     }
 
-    private boolean remove(String key) {
+    private synchronized boolean remove(String key) {
     	if (hashMap.remove(key) == null) return false;
     	saveLogs();
         return true;
     }
 
-    private void removeExpiredEntries() {
+    private synchronized void removeExpired() {
         long current = System.currentTimeMillis();
         for (String key : hashMap.keySet()) {
         	VALUE entry = hashMap.get(key);
@@ -120,7 +139,7 @@ public class Server {
         }
     }
 
-    private void saveLogs() {
+    private synchronized void saveLogs() {
     	File file = new File(DATA_FILE);
     	
         try (FileOutputStream fos = new FileOutputStream(file);
@@ -135,14 +154,13 @@ public class Server {
         }
     }
 
-    private void loadLogs() {
+    private synchronized void loadLogs() {
         File file = new File(DATA_FILE);
         if (!file.exists()) return;
 
         try (FileInputStream fis = new FileInputStream(file);
         	 BufferedReader br = new BufferedReader(new InputStreamReader(fis))) {
             String line;
-            
             while ((line = br.readLine()) != null) {
                 String[] parts = line.split(":");
                 if (parts.length == 3) {

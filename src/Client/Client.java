@@ -19,8 +19,15 @@ public class Client {
              DataInputStream dis = new DataInputStream(socket.getInputStream())) {
 
         	dos.writeUTF("PUT");
-        	dos.writeUTF(key);
-        	dos.writeUTF(value);
+
+        	byte[] keyBytes = key.getBytes();
+            dos.writeInt(keyBytes.length);
+            dos.write(keyBytes);
+
+            byte[] valueBytes = value.getBytes();
+            dos.writeInt(valueBytes.length);
+            dos.write(valueBytes);
+            
             dos.writeInt(ttl);
 
             return dis.readInt() == 0;
@@ -31,12 +38,20 @@ public class Client {
         try (Socket socket = new Socket(serverAddress, port);
              DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
              DataInputStream dis = new DataInputStream(socket.getInputStream())) {
+        	
+        	dos.writeUTF("GET");
 
-        	dos.writeUTF("GET");  
-        	dos.writeUTF(key);
+        	byte[] keyBytes = key.getBytes();
+            dos.writeInt(keyBytes.length);
+            dos.write(keyBytes);
 
             if (dis.readInt() == 0) {
-                return dis.readUTF();
+                int valueLen = dis.readInt();
+                
+                byte[] valueBytes = new byte[valueLen];
+                dis.readFully(valueBytes);
+                
+                return new String(valueBytes);
             }
             return null;
         }
@@ -48,7 +63,10 @@ public class Client {
              DataInputStream dis = new DataInputStream(socket.getInputStream())) {
 
         	dos.writeUTF("REMOVE");
-        	dos.writeUTF(key);
+
+            byte[] keyBytes = key.getBytes();
+            dos.writeInt(keyBytes.length);
+            dos.write(keyBytes);
         	
             return dis.readInt() == 0;
         }
@@ -67,7 +85,8 @@ public class Client {
             System.out.println("3. REMOVE");
             System.out.println("4. FINISH");
             System.out.print("SELECT: ");
-            int choice = scanner.nextInt();
+            
+            int command = scanner.nextInt();
             scanner.nextLine();
             System.out.println();
             
@@ -75,15 +94,18 @@ public class Client {
             int ttl;
             
             try {
-                switch (choice) {
+                switch (command) {
                     case 1:
                         System.out.print("KEY: ");
                         key = scanner.nextLine();
+                        
                         System.out.print("VALUE: ");
                         value = scanner.nextLine();
+                        
                         System.out.print("TTL: ");
                         ttl = scanner.nextInt();
                         scanner.nextLine();
+                        
                         if (client.put(key, value, ttl)) {
                             System.out.println("SUCCESS");
                         } else {
@@ -94,7 +116,9 @@ public class Client {
                     case 2:
                         System.out.print("KEY: ");
                         key = scanner.nextLine();
+                        
                         value = client.get(key);
+                        
                         if (value != null) {
                             System.out.println("VALUE: " + value);
                         } else {
@@ -105,6 +129,7 @@ public class Client {
                     case 3:
                         System.out.print("KEY: ");
                         key = scanner.nextLine();
+                        
                         if (client.remove(key)) {
                             System.out.println("SUCCESS");
                         } else {
@@ -120,6 +145,7 @@ public class Client {
                     default:
                         System.out.println("PLEASE INPUT THE CORRECT COMMAND");
                 }
+                System.out.println();
             } catch (Exception e) {
                 e.printStackTrace();
             }
